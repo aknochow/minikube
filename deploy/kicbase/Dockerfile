@@ -54,6 +54,7 @@ ARG NERDCTLD_VERSION="0.5.1"
 COPY deploy/kicbase/10-network-security.conf /etc/sysctl.d/10-network-security.conf
 COPY deploy/kicbase/11-tcp-mtu-probing.conf /etc/sysctl.d/11-tcp-mtu-probing.conf
 COPY deploy/kicbase/02-crio.conf /etc/crio/crio.conf.d/02-crio.conf
+COPY deploy/kicbase/registries.conf /etc/containers/registries.conf
 COPY deploy/kicbase/containerd.toml /etc/containerd/config.toml
 COPY deploy/kicbase/containerd_docker_io_hosts.toml /etc/containerd/certs.d/docker.io/hosts.toml
 COPY deploy/kicbase/clean-install /usr/local/bin/clean-install
@@ -178,7 +179,12 @@ RUN export ARCH=$(dpkg --print-architecture | sed 's/ppc64el/ppc64le/' | sed 's/
     && systemctl enable buildkit.socket
 
 # install podman
-RUN clean-install podman && \
+RUN sh -c "echo 'deb https://downloadcontent.opensuse.org/repositories/devel:/kubic:/libcontainers:/unstable/xUbuntu_22.04/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:unstable.list" && \
+    curl -LO https://downloadcontent.opensuse.org/repositories/devel:kubic:libcontainers:unstable/xUbuntu_22.04/Release.key && \
+    apt-key add - < Release.key && \
+    # need to add dbus-user-session else we have
+    # cannot open sd-bus: No such file or directory: OCI runtime attempted to invoke a command that was not found
+    clean-install dbus-user-session podman && \
     addgroup --system podman && \
     mkdir -p /etc/systemd/system/podman.socket.d && \
     printf "[Socket]\nSocketMode=0660\nSocketUser=root\nSocketGroup=podman\n" \
